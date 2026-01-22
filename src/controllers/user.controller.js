@@ -208,16 +208,16 @@ const refreshAccessToken = asyncHandler(async (req,res,)=>{
         secure:true
     }
 
-    const {accessToken, newRefreshToken} = await generateAccessAndRefreshTokens(user._id)
+    const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id)
 
     return res
     .status(200)
     .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", newRefreshToken, options)
-    ,json(
+    .cookie("refreshToken", refreshToken, options)
+    .json(
         new ApiResponse(
             200,
-            {accessToken, refreshToken: newRefreshToken},
+            {accessToken, refreshToken},
             "Access token refreshed"
         )
     )
@@ -227,7 +227,7 @@ const refreshAccessToken = asyncHandler(async (req,res,)=>{
 const changeCurrentPassword = asyncHandler(async(req,res)=>{
     const { oldPassword, newPassword } = req.body
 
-    const user = await User.findById(user?._id)
+    const user = await User.findById(req.user?._id)
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
 
     if(!isPasswordCorrect){
