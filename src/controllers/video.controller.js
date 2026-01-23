@@ -12,7 +12,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     
     //list query terms
     const {
-        q = "",
+        query = "",
         sort = "desc",
         page = 1,
         limit = 10,
@@ -24,7 +24,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const skipNumber = (pageNumber - 1) * limitNumber
 
     //construct search query
-    const searchTerm = q ? {title:{ $regex:q, $options:'i'}} : {}
+    const searchTerm = query ? {title:{ $regex:query, $options:'i'}} : {}
 
     //created time options for sort
     const createdTime = {
@@ -39,7 +39,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     return res
     .status(200)
-    .json(new ApiResponse(200, video, `search results for '${q}'`))
+    .json(new ApiResponse(200, video, `search results for '${query}'`))
 
 })
 
@@ -82,7 +82,18 @@ const publishAVideo = asyncHandler(async (req, res) => {
 })
 
 const getVideoById = asyncHandler(async (req, res) => {
-    //TODO: get video by id
+    //TODO: get video by id]]
+    const {videoId} = req.params
+
+    if(!videoId){
+        throw new ApiError(400, "video id is required")
+    }
+
+    const video = await Video.findById(videoId)
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,video,"video fetched successfully"))
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
