@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { getAllVideos, getVideoById, publishAVideo, updateVideo } from "../controllers/video.controller.js";
+import { deleteVideo, getAllVideos, getVideoById, publishAVideo, updateVideo } from "../controllers/video.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyOwner } from "../middlewares/verifyOwner.middleware.js"
 
@@ -22,5 +22,6 @@ router.route("/publish-video").post(
 router.route("/search").get(getAllVideos)
 router.route("/video/:videoId").get(getVideoById)
 router.route("/v/:videoId").patch(verifyJWT, verifyOwner, upload.single("thumbnail"), updateVideo)
+router.route("/delete-video/:videoId").delete(verifyJWT, verifyOwner, deleteVideo)
 
 export default router
