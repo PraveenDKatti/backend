@@ -155,6 +155,20 @@ const deleteVideo = asyncHandler(async (req, res) => {
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
+    const video = req.video
+
+    const toggleVideo = await Video.findByIdAndUpdate(
+        video._id,
+        {
+            $set:{
+                isPublished:!video.isPublished
+            }
+        }
+    ).select("-password -refreshToken")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, toggleVideo, "toggled publish status Successfully"))
 })
 
 export {

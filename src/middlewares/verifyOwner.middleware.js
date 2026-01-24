@@ -6,9 +6,7 @@ export const verifyOwner = asyncHandler(async(req,res,next) => {
 
     try {
         const { videoId } = req.params
-        console.log(videoId)    
         const video = await Video.findById(videoId)
-        console.log(video)
 
         if(!video){
             throw new ApiError(404, "Video not Found")
