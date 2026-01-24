@@ -14,9 +14,9 @@ export const verifyOwner = asyncHandler(async(req,res,next) => {
             throw new ApiError(404, "Video not Found")
         }
     
-       /*  if(video..toString() !== req.user._id.toString()){
+        if(video.owner.toString() !== req.user._id.toString()){
             throw new ApiError("401", "Unauthorized access")
-        } */
+        }
         
         req.video = video;
         next()
