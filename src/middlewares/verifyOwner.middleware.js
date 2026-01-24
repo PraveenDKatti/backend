@@ -1,0 +1,28 @@
+import { Video } from "../models/video.model.js"
+import { asyncHandler } from "../utils/asyncHandler.js"
+import { ApiError } from "../utils/ApiError.js"
+
+export const verifyOwner = asyncHandler(async(req,res,next) => {
+
+    try {
+        const { videoId } = req.params
+        console.log(videoId)    
+        const video = await Video.findById(videoId)
+        console.log(video)
+
+        if(!video){
+            throw new ApiError(404, "Video not Found")
+        }
+    
+       /*  if(video..toString() !== req.user._id.toString()){
+            throw new ApiError("401", "Unauthorized access")
+        } */
+        
+        req.video = video;
+        next()
+        
+    } catch (error) {
+        throw new ApiError(401,error?.message || "Incorrect video details")
+    }
+
+})

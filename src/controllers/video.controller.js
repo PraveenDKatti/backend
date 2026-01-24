@@ -73,6 +73,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         description,
         duration: videoDuration,
         thumbnail:cloudThumbnail.url,
+        owner:req.user?._id
     })
 
     return res
@@ -98,6 +99,47 @@ const getVideoById = asyncHandler(async (req, res) => {
 
 const updateVideo = asyncHandler(async (req, res) => {
     //TODO: update video details like title, description, thumbnail
+
+    const video = req.video
+
+    const {
+        title:newTitle = "",
+        description: newDescription =""
+    } = req.body
+
+    const thumbnailPath = req.file?.path
+
+    if(!(newTitle || newDescription || thumbnailPath)){
+        throw new ApiError(401,"missing video details")
+    }
+
+    let newThumbnail = "";
+
+    if(thumbnailPath){
+        newThumbnail = await uploadOnCloudinary(thumbnailPath)
+
+        if(!newThumbnail.url){
+            throw new ApiError(500,"Something went wrong while uploading thumbnail")
+        }
+    }
+
+    const updatedVideo = await Video.findByIdAndUpdate(
+        video._id,
+        {
+            $set: {
+                title: newTitle ? newTitle : video.title,
+                description: newDescription ? newDescription : video.description,
+                thumbnail: newThumbnail ? newThumbnail : video.thumbnail
+            }
+        },
+        {new:true}
+    ).select("-password -refreshToken")
+
+    console.log(updatedVideo)
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "Video updated successfully"))
 
 })
 
