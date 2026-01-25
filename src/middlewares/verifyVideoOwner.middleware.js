@@ -2,7 +2,7 @@ import { Video } from "../models/video.model.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { ApiError } from "../utils/ApiError.js"
 
-export const verifyOwner = asyncHandler(async (req, res, next) => {
+export const verifyVideoOwner = asyncHandler(async (req, res, next) => {
 
     const { videoId } = req.params
     const video = await Video.findById(videoId)
