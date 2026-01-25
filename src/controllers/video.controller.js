@@ -103,8 +103,8 @@ const updateVideo = asyncHandler(async (req, res) => {
     const video = req.video
 
     const {
-        title:newTitle = "",
-        description: newDescription =""
+        title = "",
+        description = "",
     } = req.body
 
     const thumbnailPath = req.file?.path
@@ -112,34 +112,29 @@ const updateVideo = asyncHandler(async (req, res) => {
     if(!(newTitle || newDescription || thumbnailPath)){
         throw new ApiError(401,"missing video details")
     }
-
-    let newThumbnail = "";
-
+                
+    if(title){
+        video.title = title
+    }
+    
+    if(description){
+        video.description = description
+    }
+    
     if(thumbnailPath){
         newThumbnail = await uploadOnCloudinary(thumbnailPath)
 
         if(!newThumbnail.url){
             throw new ApiError(500,"Something went wrong while uploading thumbnail")
         }
+        video.thumbnail = newThumbnail.url
     }
 
-    const updatedVideo = await Video.findByIdAndUpdate(
-        video._id,
-        {
-            $set: {
-                title: newTitle ? newTitle : video.title,
-                description: newDescription ? newDescription : video.description,
-                thumbnail: newThumbnail ? newThumbnail : video.thumbnail
-            }
-        },
-        {new:true}
-    ).select("-password -refreshToken")
-
-    console.log(updatedVideo)
+    await video.save()
 
     return res
     .status(200)
-    .json(new ApiResponse(200, updatedVideo, "Video updated successfully"))
+    .json(new ApiResponse(200, video, "Video updated successfully"))
 
 })
 
