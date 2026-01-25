@@ -15,12 +15,19 @@ const getVideoComments = asyncHandler(async (req, res) => {
         throw new ApiError(404, "video not found")
     }
 
+    const video = await Video.findById(videoId)
+
+    if(!video){
+        await Comment.deleteMany({video:videoId})
+        throw new ApiError(404, "video doesn't exist")
+    }
+
     //construct comment page and limit
     const pageNumber = Number(page)
     const limitNumber = Number(limit)
     const skipLength = (pageNumber-page)*limitNumber
 
-    const commentList = await Comment.find({videos:videoId}).skip(skipLength)
+    const commentList = await Comment.find({video:videoId}).skip(skipLength)
 
     return res
     .status(200)
@@ -56,11 +63,31 @@ const addComment = asyncHandler(async (req, res) => {
 const updateComment = asyncHandler(async (req, res) => {
     // TODO: update a comment
 
-    
+    const { content } = req.body
+
+    if(!content){
+        throw new ApiError(404, "content is required")
+    }
+
+    const comment = req.comment
+
+    comment.content = content
+    await comment.save()
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, comment, "comment updated successfully"))
+
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
     // TODO: delete a comment
+    const comment = req.comment
+    await Comment.deleteOne(comment._id)
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, "comment deleted Successfully"))
 })
 
 export {
