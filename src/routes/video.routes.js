@@ -6,7 +6,7 @@ import { verifyVideoOwner } from "../middlewares/verifyVideoOwner.middleware.js"
 
 const router = Router()
 
-router.route("/publish-video").post(
+router.route("/publish").post(
     upload.fields([
         {
             name:"videoFile",
@@ -20,9 +20,9 @@ router.route("/publish-video").post(
 )
 
 router.route("/search").get(getAllVideos)
-router.route("/video/:videoId").get(getVideoById)
-router.route("/v/:videoId").patch(verifyJWT, verifyVideoOwner, upload.single("thumbnail"), updateVideo)
-router.route("/delete-video/:videoId").delete(verifyJWT, verifyVideoOwner, deleteVideo)
-router.route("/toggle-publish-status/:videoId").patch(verifyJWT, verifyVideoOwner, togglePublishStatus)
+router.route("/:videoId").get(getVideoById)
+router.route("/update/:videoId").patch(verifyJWT, verifyVideoOwner, upload.single("thumbnail"), updateVideo)
+router.route("/delete/:videoId").delete(verifyJWT, verifyVideoOwner, deleteVideo)
+router.route("/toggle/publish/:videoId").patch(verifyJWT, verifyVideoOwner, togglePublishStatus)
 
 export default router
