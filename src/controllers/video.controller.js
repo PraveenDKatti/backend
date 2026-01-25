@@ -109,7 +109,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     const thumbnailPath = req.file?.path
 
-    if(!(newTitle || newDescription || thumbnailPath)){
+    if(!(title || description || thumbnailPath)){
         throw new ApiError(401,"missing video details")
     }
                 

@@ -30,11 +30,33 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
 const addComment = asyncHandler(async (req, res) => {
     // TODO: add a comment to a video
-    
+    const { content="" } = req.body
+    const { videoId } = req.params
+
+    if(!content){
+        throw new ApiError(404, "comment not found")
+    }
+
+    const video = await Video.findById(videoId)
+    if(!video){
+        throw new ApiError(404, "video not found")
+    }
+
+    const comment = await Comment.create({
+        content: content,
+        video: videoId,
+        owner: req.user._id,
+    })
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, comment, "comment added successfully"))
 })
 
 const updateComment = asyncHandler(async (req, res) => {
     // TODO: update a comment
+
+    
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
