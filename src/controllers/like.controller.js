@@ -1,0 +1,70 @@
+import mongoose, {isValidObjectId} from "mongoose"
+import {Like} from "../models/like.model.js"
+import {ApiError} from "../utils/ApiError.js"
+import {ApiResponse} from "../utils/ApiResponse.js"
+import {asyncHandler} from "../utils/asyncHandler.js"
+
+const toggleVideoLike = asyncHandler(async (req, res) => {
+    const {videoId} = req.params
+    //TODO: toggle like on video
+    const like = req.like
+    await Like.deleteOne(like._id)
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "toggled like successfully"))
+})
+
+const toggleCommentLike = asyncHandler(async (req, res) => {
+    const {commentId} = req.params
+    //TODO: toggle like on comment
+    const like = req.like
+    await Like.deleteOne(like._id)
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "toggled like successfully"))
+
+})
+
+const toggleTweetLike = asyncHandler(async (req, res) => {
+    const {tweetId} = req.params
+    //TODO: toggle like on tweet
+    const like = req.like
+    await Like.deleteOne(like._id)
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "toggled like successfully"))
+}
+)
+
+const getLikedVideos = asyncHandler(async (req, res) => {
+    //TODO: get all liked videos
+    const like = await Like.aggregate([
+        {
+            $match:{
+                likedBy: req.user_id
+            }
+        },
+        {
+            $lookup:{
+                from: videos,
+                localField: _id,
+                foreignField: video,
+                as: likes
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, like, "toggled video successfully"))
+})
+
+export {
+    toggleCommentLike,
+    toggleTweetLike,
+    toggleVideoLike,
+    getLikedVideos
+}
