@@ -8,15 +8,10 @@ import { ApiResponse } from "../utils/ApiResponse.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 
 const getAllVideos = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
     //TODO: get all videos based on query, sort, pagination
-    
-    //list query terms
-    const {
-        query = "",
-        sort = "desc",
-        page = 1,
-        limit = 10,
-    } = req.query
+
+    const pipeline = []
 
     //convert query strings into Number
     const pageNumber = Number(page)
@@ -24,22 +19,46 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const skipNumber = (pageNumber - 1) * limitNumber
 
     //construct search query
-    const searchTerm = query ? {title:{ $regex:query, $options:'i'}} : {}
-
-    //created time options for sort
-    const createdTime = {
-        createdAt : sort === "desc" ? -1 : 1 
+    if(query){
+        pipeline.push({
+            $match: {
+                $or: [
+                    { title: { $regex: query, $options: "i" } },
+                    { description: { $regex: query, $options: "i" } }
+                ]
+            }
+        })
     }
 
-    const video = await Video
-    .find(searchTerm)
-    .sort(createdTime)
-    .skip(skipNumber)
-    .limit(limitNumber)
+    // Sort logic
+    if (sortBy && sortType) {
+        pipeline.push({
+            $sort: { [sortBy]: sortType === "asc" ? 1 : -1 }
+        });
+    } else {
+        pipeline.push({ $sort: { createdAt: -1 } });
+    }
+
+    // Fetch owner details
+    pipeline.push({
+        $lookup: {
+            from: "users",
+            localField: "owner",
+            foreignField: "_id",
+            as: "owner",
+            pipeline: [{ $project: { username: 1, avatar: 1, fullName: 1 } }]
+        }
+    }, { $addFields: { owner: { $first: "$owner" } } });
+
+    const aggregate = Video.aggregate(pipeline);
+    
+    // Using mongoose-aggregate-paginate-v2
+    const options = { page: pageNumber, limit: limitNumber, skip: skipNumber };
+    const videos = await Video.aggregatePaginate(aggregate, options);
 
     return res
     .status(200)
-    .json(new ApiResponse(200, video, `search results for '${query}'`))
+    .json(new ApiResponse(200, videos, `search results for '${query}'`))
 
 })
 
@@ -53,10 +72,10 @@ const publishAVideo = asyncHandler(async (req, res) => {
     }
 
     const videoPath = req.files?.videoFile[0]?.path
-    if (!videoPath) {
-        throw new ApiError(401, "Video is required")
-    }
     const thumbnailPath = req.files?.thumbnail[0]?.path
+
+    if (!videoPath) throw new ApiError(400, "Video is required")
+    if (!thumbnailPath) throw new ApiError(400, "Thumbnail is required")
 
     const cloudVideoFile = await uploadOnCloudinary(videoPath, { resource_type:"video"})
     const cloudThumbnail = await uploadOnCloudinary(thumbnailPath, {resource_type: "image"})
@@ -65,15 +84,14 @@ const publishAVideo = asyncHandler(async (req, res) => {
         throw new ApiError(500, "something went wrong while uploading video")
     }
 
-    const videoDuration = cloudVideoFile.duration
-
     const video = await Video.create({
         videoFile: cloudVideoFile.url,
         title,
         description,
-        duration: videoDuration,
+        duration: cloudVideoFile.duration,
         thumbnail:cloudThumbnail.url,
-        owner:req.user?._id
+        owner:req.user?._id,
+        isPublished,
     })
 
     return res
