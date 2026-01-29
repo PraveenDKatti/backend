@@ -1,20 +1,18 @@
 import mongoose, { isValidObjectId } from "mongoose"
-import {Community} from "../models/tweet.model.js"
 import {User} from "../models/user.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-
+import {Tweet} from "../models/tweet.model.js"
 
 const createTweet = asyncHandler(async (req, res) => {
     //TODO: create tweet
-
     const { content } = req.body
 
     if(!content) throw new ApiError("content is required.")
 
-    const tweet = await Community.create({
-        content: content,
+    const tweet = await Tweet.create({
+        content,
         owner: req.user._id
     })
 
@@ -25,7 +23,10 @@ const createTweet = asyncHandler(async (req, res) => {
 
 const getUserTweets = asyncHandler(async (req, res) => {
     // TODO: get user tweets
-    const tweets = req.tweet
+    const { userId } = req.params
+    if(!isValidObjectId(userId)) throw new ApiError(400, "Invalid User Id")
+    
+    const tweets = await Tweet.findById({ owner: userId} )
 
     return res
     .status(200)
@@ -35,26 +36,40 @@ const getUserTweets = asyncHandler(async (req, res) => {
 
 const updateTweet = asyncHandler(async (req, res) => {
     //TODO: update tweet
-
     const { content } = req.body
+    const { tweetId } = req.params
 
-    if(!content) throw new ApiError(404, "content is required")
+    if(!isValidObjectId(tweetId)) throw new ApiError(404, "Invlid tweet Id")
+    if(!content) throw new ApiError(400, "content is required")
 
-    const tweet = req.tweet
+    const tweet = await Tweet.findById(tweetId)
 
-    tweet.content = content
-    await content.save()
+    if(tweet.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403, "Unauthorized access")
+    }
+    
+    const updatedTweet = await Tweet.findByIdAndUpdate(
+        tweetId,
+        { $set: { content } },
+        { new: true } 
+    )
 
     return res
     .status(200)
-    .json(new ApiResponse(200, tweet, "tweet updated successfully"))
+    .json(new ApiResponse(200, updatedTweet, "tweet updated successfully"))
 })
 
 const deleteTweet = asyncHandler(async (req, res) => {
     //TODO: delete tweet
-    const tweet = req.tweet
+    const { tweetId } = req.params
+    if(!isValidObjectId(tweetId)) throw new ApiError(404, "Invlid tweet Id")
+    
+    const tweet = await Tweet.findById(tweetId)
 
-    await Tweet.deletOne(tweet._id)
+    if(tweet.owner.toString() !== req.user._id.toString()){
+        throw new ApiError(403, "Unauthorized access")
+    }
+    await Tweet.findByIdAndDelete(tweetId)
 
     return res
     .status(200)
