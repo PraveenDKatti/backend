@@ -3,7 +3,6 @@ import { User } from "../models/user.model.js"
 import { ApiError } from "../utils/ApiError.js"
 import { asyncHandler } from "../utils/asyncHandler.js"
 import { Video } from "../models/video.model.js"
-import jwt from "jsonwebtoken"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js"
 
@@ -13,10 +12,9 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     const pipeline = []
 
-    //convert query strings into Number
+    //convert strings into Number
     const pageNumber = Number(page)
     const limitNumber = Number(limit)
-    const skipNumber = (pageNumber - 1) * limitNumber
 
     //construct search query
     if(query){
@@ -28,6 +26,11 @@ const getAllVideos = asyncHandler(async (req, res) => {
                 ]
             }
         })
+    }
+
+    //filter based on user
+    if(userId){
+        pipeline.push({ $match: { owner: new mongoose.Types.ObjectId(userId) } });
     }
 
     // Sort logic
@@ -52,13 +55,13 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
     const aggregate = Video.aggregate(pipeline);
     
-    // Using mongoose-aggregate-paginate-v2
-    const options = { page: pageNumber, limit: limitNumber, skip: skipNumber };
+    // pagination
+    const options = { page: pageNumber, limit: limitNumber };
     const videos = await Video.aggregatePaginate(aggregate, options);
 
     return res
     .status(200)
-    .json(new ApiResponse(200, videos, `search results for '${query}'`))
+    .json(new ApiResponse(200, videos, "fetched all videos successfully"))
 
 })
 
@@ -104,66 +107,90 @@ const getVideoById = asyncHandler(async (req, res) => {
     //TODO: get video by id]]
     const {videoId} = req.params
 
-    if(!videoId){
-        throw new ApiError(400, "video id is required")
-    }
+    if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid videoId")
 
-    const video = await Video.findById(videoId)
-    if(!video){
-        throw new ApiError(404, "video does not exist")
-    }
+    const video = await Video.aggregate([
+        { $match: {_id: new mongoose.Types.ObjectId(videoId) } },
+        {
+            $lookup:{
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                aS: "owner",
+                pipeline:[ { $project: { username: 1, avatar: 1, fullname: 1 } } ]
+            }
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "video",
+                as: "likes"
+            }
+        },
+        {
+            $addFields:{
+                likesCount: {$size: "$likes"},
+                owner: {$first: "$owner"},
+                isLiked: { $in: [req.user?._id, "$likes.likedBy"]}
+            }
+        }
+    ])
+
+    if(!video.length) throw new ApiError(404, "video not found")
 
     return res
     .status(200)
-    .json(new ApiResponse(200,video,"video fetched successfully"))
+    .json(new ApiResponse(200,video[0],"video fetched successfully"))
 })
 
 const updateVideo = asyncHandler(async (req, res) => {
     //TODO: update video details like title, description, thumbnail
+    const { videoId } = req.params;
+    const { title, description } = req.body;
+    const thumbnailPath = req.file?.path;
 
-    const video = req.video
+    if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid Video ID");
 
-    const {
-        title = "",
-        description = "",
-    } = req.body
-
-    const thumbnailPath = req.file?.path
-
-    if(!(title || description || thumbnailPath)){
-        throw new ApiError(401,"missing video details")
+    const video = await Video.findById(videoId)
+    if (video.owner.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You don't have permission to update this video");
     }
                 
-    if(title){
-        video.title = title
-    }
-    
-    if(description){
-        video.description = description
-    }
+    const updateData = { title, description };
     
     if(thumbnailPath){
         newThumbnail = await uploadOnCloudinary(thumbnailPath)
-
         if(!newThumbnail.url){
             throw new ApiError(500,"Something went wrong while uploading thumbnail")
         }
-        video.thumbnail = newThumbnail.url
+        updateData.thumbnail = newThumbnail.url
     }
 
-    await video.save()
+    const updatedVideo = await Video.findByIdAndUpdate(
+        videoId,
+        { $set: updateData },
+        { new: true }
+    )
 
     return res
     .status(200)
-    .json(new ApiResponse(200, video, "Video updated successfully"))
+    .json(new ApiResponse(200, updatedVideo, "Video updated successfully"))
 
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
     //TODO: delete video
-    const video = req.video
+    const { videoId } = req.params
 
-    await Video.deleteOne(video._id)
+    if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid Video Id")
+    
+    const video = await Video.findById(videoId)
+    if(video.owner.toString() !== req.user?._id.toString()){
+        throw new ApiError(403, "Unauthorized access")
+    }
+
+    await Video.findByIdAndDelete(videoId)
 
     return res
     .status(200)
@@ -171,14 +198,21 @@ const deleteVideo = asyncHandler(async (req, res) => {
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
-    const video = req.video
+    const { videoId } = req.params
 
-    video.isPublished = !video.isPublished
-    await video.save()
+    if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid Video Id")
+
+    const video = await Video.findById(videoId)
+    if(video.owner.toString() !== req.user?._id){
+        throw new ApiError(403, "Unauthorized access")
+    }
+
+    video.isPublished = !video.isPublished;
+    await video.save({ validateBeforeSave: false });
 
     return res
     .status(200)
-    .json(new ApiResponse(200, video, "toggled publish status Successfully"))
+    .json(new ApiResponse(200, {isPublished: video.isPublished }, "toggled publish status Successfully"))
 })
 
 export {
