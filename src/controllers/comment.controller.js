@@ -1,56 +1,52 @@
-import mongoose from "mongoose"
+import mongoose, { isValidObjectId } from "mongoose"
 import {Comment} from "../models/comment.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import { Video } from "../models/video.model.js"
 
 const getVideoComments = asyncHandler(async (req, res) => {
     //TODO: get all comments for a video
 
     const { videoId } = req.params
-    const { page=1,limit=10 } = req.query
+    const { page=1, limit=10 } = req.query
 
-    if(!videoId){
-        throw new ApiError(404, "video not found")
-    }
+    if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid video Id")
 
-    const video = await Video.findById(videoId)
-
-    if(!video){
-        await Comment.deleteMany({video:videoId})
-        throw new ApiError(404, "video doesn't exist")
-    }
+    const comments = await Comment.aggregate([
+        { $match: { video: new mongoose.Types.ObjectId(videoId) } },
+        {
+            $lookup:{
+                from: users,
+                localField: owner,
+                foreignField: _id,
+                as: owner,
+                pipeline: [ { $projec: {username: 1, avatar: 1} } ]
+            }
+        },
+        { $addFields: { owner: { $first: "$owner" } } }
+    ])
 
     //construct comment page and limit
     const pageNumber = Number(page)
     const limitNumber = Number(limit)
-    const skipLength = (pageNumber-page)*limitNumber
 
-    const commentList = await Comment.find({video:videoId}).skip(skipLength)
+    const paginatedComments = await Comment.aggregatePaginate(comments, { pageNumber, limitNumber });
 
     return res
     .status(200)
-    .json(new ApiResponse(200, commentList, "comments fetched successfully"))
+    .json(new ApiResponse(200, paginatedComments, "comments fetched successfully"))
 
 })
 
 const addComment = asyncHandler(async (req, res) => {
     // TODO: add a comment to a video
-    const { content="" } = req.body
+    const { content } = req.body
     const { videoId } = req.params
 
-    if(!content){
-        throw new ApiError(404, "comment not found")
-    }
-
-    const video = await Video.findById(videoId)
-    if(!video){
-        throw new ApiError(404, "video not found")
-    }
+    if(!content) throw new ApiError(404, "comment content is required")
 
     const comment = await Comment.create({
-        content: content,
+        content,
         video: videoId,
         owner: req.user._id,
     })
@@ -62,37 +58,49 @@ const addComment = asyncHandler(async (req, res) => {
 
 const updateComment = asyncHandler(async (req, res) => {
     // TODO: update a comment
-
+    const { commentId } = req.params
     const { content } = req.body
 
-    if(!content){
-        throw new ApiError(404, "content is required")
+    if(!isValidObjectId(commentId)) throw new ApiError(400, "Invalid comment Id")
+    if(!content) throw new ApiError(404, "content is required")
+
+    const cpmment = await Comment.findById(commentId)
+    if(comment.owner.toString() !== req.user?._id){
+        throw new ApiError(403, "Unauthorized access")
     }
 
-    const comment = req.comment
-
-    comment.content = content
-    await comment.save()
+    const updaedComment = await Comment.findByIdAndUpdate(
+        commentId,
+        { $set: {content } },
+        { new: true }
+    )
 
     return res
     .status(200)
-    .json(new ApiResponse(200, comment, "comment updated successfully"))
+    .json(new ApiResponse(200, updaedComment, "comment updated successfully"))
 
 })
 
 const deleteComment = asyncHandler(async (req, res) => {
     // TODO: delete a comment
-    const comment = req.comment
-    await Comment.deleteOne(comment._id)
 
+    const { commentId } = req.params
+    if(!isValidObjectId(commentId)) throw new ApiError("Invalid comment Id")
+
+    const comment = await Comment.findById(commentId)
+    if(!comment.owner.toString() !== req.user?._id){
+        throw new ApiError(403, "Unauthorized access")
+    }
+
+    await Comment.findByIdAndDelete(commentId)
     return res
     .status(200)
-    .json(new ApiResponse(200, "comment deleted Successfully"))
+    .json(new ApiResponse(200, {}, "comment deleted Successfully"))
 })
 
 export {
     getVideoComments, 
     addComment, 
     updateComment,
-     deleteComment
-    }
+    deleteComment
+}
