@@ -12,25 +12,21 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
     if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid video Id")
 
-    const comments = await Comment.aggregate([
+    const comments = Comment.aggregate([
         { $match: { video: new mongoose.Types.ObjectId(videoId) } },
         {
             $lookup:{
-                from: users,
-                localField: owner,
-                foreignField: _id,
-                as: owner,
-                pipeline: [ { $projec: {username: 1, avatar: 1} } ]
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+                pipeline: [ { $project: {username: 1, avatar: 1} } ]
             }
         },
         { $addFields: { owner: { $first: "$owner" } } }
     ])
 
-    //construct comment page and limit
-    const pageNumber = Number(page)
-    const limitNumber = Number(limit)
-
-    const paginatedComments = await Comment.aggregatePaginate(comments, { pageNumber, limitNumber });
+    const paginatedComments = await Comment.aggregatePaginate(comments, { page: Number(page), limit: Number(limit) });
 
     return res
     .status(200)
@@ -64,8 +60,8 @@ const updateComment = asyncHandler(async (req, res) => {
     if(!isValidObjectId(commentId)) throw new ApiError(400, "Invalid comment Id")
     if(!content) throw new ApiError(404, "content is required")
 
-    const cpmment = await Comment.findById(commentId)
-    if(comment.owner.toString() !== req.user?._id){
+    const comment = await Comment.findById(commentId)
+    if(comment.owner.toString() !== req.user?._id.toString()){
         throw new ApiError(403, "Unauthorized access")
     }
 
@@ -88,7 +84,7 @@ const deleteComment = asyncHandler(async (req, res) => {
     if(!isValidObjectId(commentId)) throw new ApiError("Invalid comment Id")
 
     const comment = await Comment.findById(commentId)
-    if(!comment.owner.toString() !== req.user?._id){
+    if(comment.owner.toString() !== req.user?._id.toString()){
         throw new ApiError(403, "Unauthorized access")
     }
 

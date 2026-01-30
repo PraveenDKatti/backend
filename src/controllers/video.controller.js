@@ -93,8 +93,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         description,
         duration: cloudVideoFile.duration,
         thumbnail:cloudThumbnail.url,
-        owner:req.user?._id,
-        isPublished,
+        owner:req.user?._id
     })
 
     return res
@@ -112,11 +111,11 @@ const getVideoById = asyncHandler(async (req, res) => {
     const video = await Video.aggregate([
         { $match: {_id: new mongoose.Types.ObjectId(videoId) } },
         {
-            $lookup:{
+            $lookup: {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
-                aS: "owner",
+                as: "owner",
                 pipeline:[ { $project: { username: 1, avatar: 1, fullname: 1 } } ]
             }
         },
@@ -203,7 +202,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid Video Id")
 
     const video = await Video.findById(videoId)
-    if(video.owner.toString() !== req.user?._id){
+    if(video.owner.toString() !== req.user?._id.toString()){
         throw new ApiError(403, "Unauthorized access")
     }
 

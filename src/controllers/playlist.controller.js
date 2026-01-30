@@ -56,7 +56,7 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
 
     const playlist = await Playlist.findByIdAndUpdate(
         playlistId,
-        { $addToSet: {video: videoId} },
+        { $addToSet: {videos: videoId} },
         { new: true }
     )
 
@@ -92,7 +92,7 @@ const deletePlaylist = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .jsoon(new ApiResponse(200, {}, "playlist deleted successfully"))
+        .json(new ApiResponse(200, {}, "playlist deleted successfully"))
 })
 
 const updatePlaylist = asyncHandler(async (req, res) => {

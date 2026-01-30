@@ -26,7 +26,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
     const { userId } = req.params
     if(!isValidObjectId(userId)) throw new ApiError(400, "Invalid User Id")
     
-    const tweets = await Tweet.findById({ owner: userId} )
+    const tweets = await Tweet.find({ owner: userId} )
 
     return res
     .status(200)

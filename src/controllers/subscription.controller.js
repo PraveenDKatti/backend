@@ -69,11 +69,11 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
                 localField: "channel",
                 foreignField: "_id",
                 as: "subscribedChannel",
-                pipeline:[{ $projects:{ username: 1, fullName:1, avatar: 1} } ]
+                pipeline:[{ $project:{ username: 1, fullName:1, avatar: 1} } ]
             }
         },
         { $unwind: "$subscribedChannel" },
-        { $project: { subscribedChannel:1 } }
+        { $project: { subscribedChannel:1, createdAt: 1 } }
     ])
 
     return res
