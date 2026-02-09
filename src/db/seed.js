@@ -3,22 +3,34 @@ import { faker } from "@faker-js/faker";
 import { User } from "../models/user.model.js";
 import { Video } from "../models/video.model.js";
 import { Community } from "../models/community.model.js";
+import { Comment } from "../models/comment.model.js"; // Added Comment Model
 import dotenv from "dotenv";
 import connectDB from "./index.js";
 
 dotenv.config({ path: "./.env" });
 
+// A list of reliable sample video URLs for variety
+const sampleVideos = [
+    "https://res.cloudinary.com/demo/video/upload/dog.mp4",
+    "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+    "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"
+];
+
 const seedData = async () => {
     try {
         await connectDB();
 
-        // 1. Clear existing data
         console.log("Cleaning database...");
         await User.deleteMany({});
         await Video.deleteMany({});
         await Community.deleteMany({});
+        await Comment.deleteMany({}); // Clear comments too
 
-        // 2. Create Dummy Users
+        // 1. Create Dummy Users
         console.log("Seeding users...");
         const users = [];
         for (let i = 0; i < 10; i++) {
@@ -26,22 +38,24 @@ const seedData = async () => {
                 username: faker.internet.username().toLowerCase(),
                 email: faker.internet.email().toLowerCase(),
                 fullName: faker.person.fullName(),
-                avatar: faker.image.avatar(),
-                coverImage: faker.image.urlPicsumPhotos(),
-                password: "password123", // In real app, this will be hashed by pre-save hook
+                avatar: `https://i.pravatar.cc/150?u=${faker.string.uuid()}`, // Better avatar service
+                coverImage: `https://picsum.photos/seed/${faker.string.uuid()}/1200/400`,
+                password: "password123", 
             });
         }
         const createdUsers = await User.insertMany(users);
 
-        // 3. Create Dummy Videos
+        // 2. Create Dummy Videos
         console.log("Seeding videos...");
         const videos = [];
         for (let i = 0; i < 20; i++) {
             const randomOwner = createdUsers[Math.floor(Math.random() * createdUsers.length)];
+            const randomVideo = sampleVideos[Math.floor(Math.random() * sampleVideos.length)];
+            
             videos.push({
-                videoFile: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
-                thumbnail: faker.image.url({ width: 640, height: 480 }),
-                title: faker.lorem.sentence(),
+                videoFile: randomVideo,
+                thumbnail: `https://picsum.photos/seed/${faker.string.uuid()}/640/480`,
+                title: faker.lorem.sentence(5),
                 description: faker.lorem.paragraph(),
                 duration: faker.number.int({ min: 60, max: 600 }),
                 views: faker.number.int({ min: 0, max: 10000 }),
@@ -49,7 +63,23 @@ const seedData = async () => {
                 owner: randomOwner._id,
             });
         }
-        await Video.insertMany(videos);
+        const createdVideos = await Video.insertMany(videos);
+
+        // 3. Create Dummy Comments for each video
+        console.log("Seeding comments...");
+        const comments = [];
+        createdVideos.forEach((video) => {
+            const numComments = faker.number.int({ min: 2, max: 6 });
+            for (let j = 0; j < numComments; j++) {
+                const randomCommenter = createdUsers[Math.floor(Math.random() * createdUsers.length)];
+                comments.push({
+                    content: faker.lorem.sentence(),
+                    video: video._id,
+                    owner: randomCommenter._id,
+                });
+            }
+        });
+        await Comment.insertMany(comments);
 
         // 4. Create Community Posts
         console.log("Seeding community posts...");
@@ -63,7 +93,7 @@ const seedData = async () => {
         }
         await Community.insertMany(posts);
 
-        console.log("✅ Database Seeded Successfully!");
+        console.log("✅ Database Seeded with Videos and Comments!");
         process.exit();
     } catch (error) {
         console.error("❌ Seed Error:", error);
