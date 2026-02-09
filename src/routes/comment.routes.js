@@ -8,9 +8,10 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js"
 
 const router = Router()
+router.route("/:videoId/comments").get(getVideoComments)
+
 router.use(verifyJWT)
 
-router.route("/:videoId/comments").get(getVideoComments)
 router.route("/:videoId/comments").post(addComment)
 router.route("/c/:commentId").patch(updateComment)
 router.route("/c/:commentId").delete(deleteComment)
